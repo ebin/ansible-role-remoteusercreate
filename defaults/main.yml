@@ -1,0 +1,7 @@
+---
+# users to be created
+server_users:
+ - user1
+
+absent_users:
+ - user2

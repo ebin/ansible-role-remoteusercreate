@@ -1,0 +1,51 @@
+# tasks file to create users for passwordless login
+---
+- name: create group devlogin
+  group:
+    name: devlogin
+    state: present
+
+- name: check status of file
+  stat: path=/etc/sudoers.d/devlogin
+  register: file_path
+
+- name: Create sudoer file
+  file: path=/etc/sudoers.d/devlogin state=touch	
+  when: file_path.stat.exists == false
+ 
+- name: Allow devlogin group to have passwordless sudo
+  lineinfile:
+    dest: /etc/sudoers.d/devlogin
+    state: present
+    regexp: '^%devlogin'
+    line: '%devlogin ALL=(ALL) NOPASSWD: ALL' 
+  when: file_path.stat.exists == false
+
+- name: create users for ssh login
+  user:
+    name: "{{ item }}"
+    state: present
+    shell: /bin/bash
+    groups: devlogin
+    generate_ssh_key: yes
+    ssh_key_bits: 4096
+    ssh_key_type: rsa
+    ssh_key_file: .ssh/id_rsa
+  with_items:
+    - "{{ server_users }}"
+ 
+- name: Set authorized key from local server for the users
+  authorized_key:
+     user: "{{ item }}"
+     state: present
+     key: "{{ lookup('file', '/home/{{ item }}/.ssh/id_rsa.pub') }}"
+  with_items:
+      - "{{ server_users }}"
+    
+- name: Remove old users
+  user:
+     name: "{{ item }}"
+     state: absent
+     remove: yes
+  with_items:
+     - "{{ absent_users }}"  
